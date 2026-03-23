@@ -69,6 +69,9 @@ public class PlayerScript : MonoBehaviour
 
         this.playerInputActions.PlayerActionMap.Slide.started -= OnSlideHoldStart;
         this.playerInputActions.PlayerActionMap.Slide.canceled -= OnSlideHoldEnd;
+
+        this.playerInputActions.PlayerActionMap.Boost.started -= OnBoostHoldStart;
+        this.playerInputActions.PlayerActionMap.Boost.canceled -= OnBoostHoldEnd;
     }
     private void OnSlideHoldStart(InputAction.CallbackContext context) { //pressing and holding slide cancels boost and slides
         this.isBoosting = false;
