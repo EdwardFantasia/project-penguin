@@ -7,12 +7,14 @@ using static UnityEngine.Rendering.DebugUI;
 
 //TODO: need to implement some sort of "turnaround" drag where quickly flicking from left to right or vice versa
 //TODO: implement jumping (tmp done, some tweaking may need to be done to adjust via how long space is held)
-//TODO: implement grapple
+//TODO: implement grapple (cut for now)
 //TODO: implement slide (tmp done)
 //TODO: implement stomp (tmp done)
 //TODO: implement boost (tmp done)
 //TODO: implement chain attack
-//TODO: implement wall jump implementation
+//TODO: implement wall jump implementation (cut for now)
+//TODO: model shield for shield enemy
+//TODO: make it so boosting without physically moving character moves character ingame in currently-facing direction
 
 //TODO: implement camera toggle between perspective and orthographic (strictly 2D) camera
 //TODO: implement camera movement when character is no longer within frame
@@ -21,6 +23,7 @@ public class PlayerScript : MonoBehaviour
 {
     public Rigidbody playerbody;
     private PlayerInputActions playerInputActions;
+    public BoostScript boostScript;
     
     private bool canJump;
     private bool isMidair;
@@ -46,6 +49,7 @@ public class PlayerScript : MonoBehaviour
     void Awake() {
         this.playerInputActions = new PlayerInputActions();
         this.curCollectibles = 0;
+        this.boostScript = GetComponentInChildren<BoostScript>();
     }
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -74,7 +78,7 @@ public class PlayerScript : MonoBehaviour
         this.playerInputActions.PlayerActionMap.Boost.canceled -= OnBoostHoldEnd;
     }
     private void OnSlideHoldStart(InputAction.CallbackContext context) { //pressing and holding slide cancels boost and slides
-        this.isBoosting = false;
+        this.endBoost();
         this.isSliding = true;
         if (this.isMidair){ //can stomp while midair
             this.isStomping = true;
@@ -85,13 +89,13 @@ public class PlayerScript : MonoBehaviour
         this.isSliding = false;
     }
     private void OnBoostHoldStart(InputAction.CallbackContext context) { //pressing and holding boost activates boost and deactivates sliding and stomping
-        this.isBoosting = true;
+        this.startBoost();
         this.isSliding = false;
         this.isStomping = false;
     }
 
     private void OnBoostHoldEnd(InputAction.CallbackContext context) { //no longer holding boost cancels boost
-        this.isBoosting = false;
+        this.endBoost();
     }
 
     // Update is called once per frame
@@ -105,7 +109,7 @@ public class PlayerScript : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        print("test collision");
+        Debug.Log("test collision");
     }
 
     public void processTrigger(string triggerName, Collider otherCollisionData) {
@@ -114,15 +118,21 @@ public class PlayerScript : MonoBehaviour
                 bool wasStomping = this.isStomping;
                 this.isStomping = false;
                 print("footbox touched ground");
-                /*TODO: X-axis movement is impacted too negatively, decrease how much player "stops" on landing, include setting of playerVel here*/
                 this.canJump = true;
                 this.isMidair = false;
+                if (!wasStomping && this.rbForce.x != 0) {
+                    Debug.Log("landed after not stomping and moving along X still");
+                    /*TODO: X-axis movement is impacted too negatively upon landing after not stomping, decrease how much player "stops" on landing, include setting of playerVel here*/
+                }
             }
         }
     }
 
     void OnMove2(InputValue value) {
         this.rbForce = value.Get<Vector2>();
+        if(this.rbForce.x != 0) {
+            this.playerbody.rotation = Quaternion.Euler(0, (this.rbForce.x > 0 ? 0 : 180), 0);
+        }
         this.rbForce.y = 0; //IMPORTANT: used to remove any influence pressing up on control stick has on player while jumping, may need to remove in order to do a move in the future
     }
 
@@ -152,6 +162,16 @@ public class PlayerScript : MonoBehaviour
 
     public void setPlayerLinearVelocity(Vector3 smoothedVelocity) {
         this.playerbody.linearVelocity = smoothedVelocity; // set new velocity with acceleration applied (smoothed velocity) to player's linear velocity
+    }
+
+    public void endBoost() {
+        this.isBoosting = false;
+        this.boostScript.disableBoostElements();
+    }
+
+    public void startBoost() {
+        this.isBoosting = true;
+        this.boostScript.enableBoostElements();
     }
 
     void FixedUpdate() //used for physics changes
