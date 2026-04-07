@@ -690,17 +690,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerScript
   playerbody: {fileID: 925612442}
-  boostScript: {fileID: 0}
+  boostScript: {fileID: 2048069780}
+  frictBox: {fileID: 1432028036}
+  hurtBox: {fileID: 1808029494}
+  footBox: {fileID: 2007259628}
   moveSpeed: 13.5
   acceleration: 27
   slideDrag: 12
-  jumpForce: 7.5
+  jumpForce: 10
   stompForce: 8
   boostSpeedMult: 1.75
   boostAccelMult: 1.5
   curBoostResource: 0
   origBoostMax: 100
   curCollectibles: 0
+  boxcastBoxSize: 10
+  boxcastCastDistance: 50
 --- !u!4 &925612448 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 80cc0fcffef690646b0dc7bd26be1695, type: 3}
@@ -986,7 +991,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1309589552}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5dcd4da188e8b92469334bd01cd98113, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -1095,8 +1100,8 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
+  m_Constraints: 112
+  m_CollisionDetection: 1
 --- !u!4 &1604721760 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 0f1216ce8a9d3d443b4c4fa8db1f4486, type: 3}
@@ -1378,35 +1383,14 @@ GameObject:
   - component: {fileID: 2049062346}
   - component: {fileID: 2049062345}
   - component: {fileID: 2049062344}
-  - component: {fileID: 2049062343}
-  m_Layer: 0
+  - component: {fileID: 2049062347}
+  m_Layer: 6
   m_Name: Ground
   m_TagString: Platform
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!65 &2049062343
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2049062342}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2049062344
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1479,6 +1463,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &2049062347
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2049062342}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

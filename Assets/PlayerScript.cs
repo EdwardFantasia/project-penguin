@@ -1,4 +1,5 @@
 using System;
+using Unity.VisualScripting;
 using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -11,7 +12,7 @@ using static UnityEngine.Rendering.DebugUI;
 //TODO: implement slide (tmp done)
 //TODO: implement stomp (tmp done)
 //TODO: implement boost (tmp done)
-//TODO: implement chain attack
+//TODO: implement homing attack
 //TODO: implement wall jump implementation (cut for now)
 //TODO: model shield for shield enemy
 //TODO: make it so boosting without physically moving character moves character ingame in currently-facing direction
@@ -24,38 +25,53 @@ public class PlayerScript : MonoBehaviour
     public Rigidbody playerbody;
     private PlayerInputActions playerInputActions;
     public BoostScript boostScript;
-    
+    public BoxCollider frictBox;
+    public BoxCollider hurtBox;
+    public BoxCollider footBox;
+    private RaycastHit objectHit;
+
     private bool canJump;
     private bool isMidair;
     private bool isStomping;
     private bool isSliding;
     private bool isBoosting;
+    private bool passthrough = false;
 
     private Vector2 rbForce;
 
     public float moveSpeed = 13.5f;
     public float acceleration = 14f;
     public float slideDrag = 12f;
-    public float jumpForce = 7.5f;
+    //public float jumpForce = 7.5f;
+    public float jumpForce = 10f;
     public float stompForce = 8f;
     public float boostSpeedMult = 1.75f;
     public float boostAccelMult = 1.25f;
     public float curBoostResource; //can be restored through destruction of enemies
     public float origBoostMax = 100f; //can be increased through collection of collectibles in game
     public int curCollectibles;
+    public float boxcastBoxSize = 10f;
+    public float boxcastCastDistance = 50f;
     /*public float nonBoostMax = 100f;
     public float boostMax = 250f;*/
+
+    public float footboxMinY;
+    public float objectHitMaxY;
+
 
     void Awake() {
         this.playerInputActions = new PlayerInputActions();
         this.curCollectibles = 0;
         this.boostScript = GetComponentInChildren<BoostScript>();
+        this.playerbody = GetComponent<Rigidbody>();
+        
+        this.footBox = GetComponentInChildren<BoxCollider>();
     }
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        this.playerbody = GetComponent<Rigidbody>();
+        
     }
     private void OnEnable() {
         this.playerInputActions.PlayerActionMap.Enable();
@@ -98,12 +114,35 @@ public class PlayerScript : MonoBehaviour
         this.endBoost();
     }
 
+    void disablePlayerPhysicsColliders(Collider otherCollider) {
+        Physics.IgnoreCollision(this.frictBox, otherCollider);
+        Physics.IgnoreCollision(this.hurtBox, otherCollider);
+    }
+
+    void enablePlayerPhysicsColliders(Collider otherCollider) {
+        Physics.IgnoreCollision(this.frictBox, otherCollider, false);
+        Physics.IgnoreCollision(this.hurtBox, otherCollider, false);
+    }
+
     // Update is called once per frame
     void Update()
     {
         if (this.isStomping) { //placing this here fixed the bug where player model would clip into floor when stomping
             this.playerbody.AddForce(Vector2.down * (this.stompForce / 2), ForceMode.Impulse);
             this.setPlayerLinearVelocity(new Vector3(0, this.playerbody.linearVelocity.y, 0));
+        }
+
+        if (this.passthrough) {
+            Physics.SyncTransforms();
+            this.footboxMinY = this.footBox.bounds.min.y;
+            this.objectHitMaxY = this.objectHit.collider.bounds.max.y;
+            if((footboxMinY - objectHitMaxY) >= 0){
+                this.enablePlayerPhysicsColliders(this.objectHit.collider);
+            }
+            Debug.DrawLine(new Vector3(-5, this.footboxMinY, 0), new Vector3(5, this.footboxMinY, 0), Color.green);
+            Debug.DrawLine(new Vector3(-5, this.objectHitMaxY, 0), new Vector3(5, this.objectHitMaxY, 0), Color.red);
+            Debug.Log($"Plat test - footboxMinY: ${footboxMinY}");
+            Debug.Log($"Plat test - objectHitMaxY: ${this.objectHitMaxY}");
         }
     }
 
@@ -134,10 +173,15 @@ public class PlayerScript : MonoBehaviour
             this.playerbody.rotation = Quaternion.Euler(0, (this.rbForce.x > 0 ? 0 : 180), 0);
         }
         this.rbForce.y = 0; //IMPORTANT: used to remove any influence pressing up on control stick has on player while jumping, may need to remove in order to do a move in the future
+
     }
 
     void OnJump() {
         if (canJump && !isMidair) {
+            this.passthrough = Physics.BoxCast(center: new Vector3(transform.position.x - .05f, (transform.position.y + this.frictBox.size.y) - .5f, transform.position.z), halfExtents: new Vector3(.5f, .5f, 0), direction: transform.up, out this.objectHit, orientation: transform.rotation, maxDistance: 25f, layerMask: 1 << 6);
+            if (this.passthrough) {
+                this.disablePlayerPhysicsColliders(this.objectHit.collider);
+            }
             this.playerbody.AddForce(Vector2.up * jumpForce, ForceMode.Impulse);
             this.isMidair = true;
             this.canJump = false;
@@ -197,5 +241,15 @@ public class PlayerScript : MonoBehaviour
 
             this.setPlayerLinearVelocity(smoothedVelocity);
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = this.passthrough ? Color.green : Color.red;
+        // Set matrix to match the object's rotation and position
+        Gizmos.matrix = transform.localToWorldMatrix;
+
+        Debug.DrawLine(new Vector3(-5, this.footboxMinY, 0), new Vector3(5, this.footboxMinY, 0), Color.green);
+        Debug.DrawLine(new Vector3(-5, this.objectHitMaxY, 0), new Vector3(5, this.objectHitMaxY, 0), Color.red);
     }
 }
