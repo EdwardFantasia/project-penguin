@@ -19,8 +19,7 @@ using static UnityEngine.Rendering.DebugUI;
 
 //TODO: implement camera toggle between perspective and orthographic (strictly 2D) camera
 //TODO: implement camera movement when character is no longer within frame
-
-public class PlayerScript : MonoBehaviour
+public class PlayerScript : MonoBehaviour, Movable
 {
     public Rigidbody playerbody;
     private PlayerInputActions playerInputActions;
@@ -29,6 +28,7 @@ public class PlayerScript : MonoBehaviour
     public BoxCollider hurtBox;
     public BoxCollider footBox;
     private RaycastHit objectHit;
+    public float raycastDist = 8.5f;
 
     private bool canJump;
     private bool isMidair;
@@ -42,9 +42,8 @@ public class PlayerScript : MonoBehaviour
     public float moveSpeed = 13.5f;
     public float acceleration = 14f;
     public float slideDrag = 12f;
-    //public float jumpForce = 7.5f;
-    public float jumpForce = 10f;
-    public float stompForce = 8f;
+    public float jumpForce = 8f;
+    public float stompForce = 9f;
     public float boostSpeedMult = 1.75f;
     public float boostAccelMult = 1.25f;
     public float curBoostResource; //can be restored through destruction of enemies
@@ -52,6 +51,7 @@ public class PlayerScript : MonoBehaviour
     public int curCollectibles;
     public float boxcastBoxSize = 10f;
     public float boxcastCastDistance = 50f;
+    public int coyoteFrames = 6; //may need to be increased to 8 & TODO: make a counter for curCoyoteFrames instead of only using coyoteFrames
     /*public float nonBoostMax = 100f;
     public float boostMax = 250f;*/
 
@@ -114,29 +114,34 @@ public class PlayerScript : MonoBehaviour
         this.endBoost();
     }
 
-    void disablePlayerPhysicsColliders(Collider otherCollider) {
+    void disablePlayerPhysicsColliders(Collider otherCollider) { //disable frictBox and hurtBox collisions with otherCollider
         Physics.IgnoreCollision(this.frictBox, otherCollider);
         Physics.IgnoreCollision(this.hurtBox, otherCollider);
     }
 
-    void enablePlayerPhysicsColliders(Collider otherCollider) {
+    void enablePlayerPhysicsColliders(Collider otherCollider) { //enables frictBox and hurtBox collisions with otherCollider
         Physics.IgnoreCollision(this.frictBox, otherCollider, false);
         Physics.IgnoreCollision(this.hurtBox, otherCollider, false);
     }
 
-    // Update is called once per frame
+    // Update is called once per framedd
     void Update()
     {
+        if(this.coyoteFrames < 6) { //if player is falling from ground, have 5 coyote frames to jump and each frame decrease by 1
+            Debug.Log($"coyoteFrames: {this.coyoteFrames}");
+            this.coyoteFrames -= 1; //decrease cur coyoteFrames by 1
+        }
+
         if (this.isStomping) { //placing this here fixed the bug where player model would clip into floor when stomping
             this.playerbody.AddForce(Vector2.down * (this.stompForce / 2), ForceMode.Impulse);
             this.setPlayerLinearVelocity(new Vector3(0, this.playerbody.linearVelocity.y, 0));
         }
 
-        if (this.passthrough) {
-            Physics.SyncTransforms();
+        if (this.passthrough) { //if passing through bottom of platform...
+            Physics.SyncTransforms(); //sync physics transforms
             this.footboxMinY = this.footBox.bounds.min.y;
             this.objectHitMaxY = this.objectHit.collider.bounds.max.y;
-            if((footboxMinY - objectHitMaxY) >= 0){
+            if((footboxMinY - objectHitMaxY) >= 0){ //if footboxMinY is greater than platform's collider's max y, reenable the physics collision between platform and player
                 this.enablePlayerPhysicsColliders(this.objectHit.collider);
             }
             Debug.DrawLine(new Vector3(-5, this.footboxMinY, 0), new Vector3(5, this.footboxMinY, 0), Color.green);
@@ -151,9 +156,18 @@ public class PlayerScript : MonoBehaviour
         Debug.Log("test collision");
     }
 
+    private void OnCollisionExit(Collision collision)
+    {
+        if (this.playerbody.linearVelocity.y < 0 && collision.collider.name.Contains("Ground")) { //if player falling and the player was last standing on a ground object...
+            Debug.Log("exiting ground collision and falling");
+            this.coyoteFrames -= 1; //start decreasing coyoteFrames
+        }
+    }
+
     public void processTrigger(string triggerName, Collider otherCollisionData) {
         if(triggerName == "Footbox") {
-            if (otherCollisionData.name == "Ground") {
+            if (otherCollisionData.name.Contains("Ground")) {
+                this.coyoteFrames = 6;
                 bool wasStomping = this.isStomping;
                 this.isStomping = false;
                 print("footbox touched ground");
@@ -177,8 +191,8 @@ public class PlayerScript : MonoBehaviour
     }
 
     void OnJump() {
-        if (canJump && !isMidair) {
-            this.passthrough = Physics.BoxCast(center: new Vector3(transform.position.x - .05f, (transform.position.y + this.frictBox.size.y) - .5f, transform.position.z), halfExtents: new Vector3(.5f, .5f, 0), direction: transform.up, out this.objectHit, orientation: transform.rotation, maxDistance: 25f, layerMask: 1 << 6);
+        if (canJump && !isMidair && (this.coyoteFrames > 0)) {
+            this.passthrough = Physics.BoxCast(center: new Vector3(transform.position.x - .05f, (transform.position.y + this.frictBox.size.y) - .5f, transform.position.z), halfExtents: new Vector3(.5f, .5f, 0), direction: transform.up, out this.objectHit, orientation: transform.rotation, maxDistance: this.raycastDist, layerMask: 1 << 6);
             if (this.passthrough) {
                 this.disablePlayerPhysicsColliders(this.objectHit.collider);
             }
@@ -190,18 +204,6 @@ public class PlayerScript : MonoBehaviour
 
     public void setCanJump(bool canJumpValue) { //for objects like enemies to call
         this.canJump = canJumpValue;
-    }
-
-    public Vector3 calculatePlayerTargetVelocity(float vector_XInput, float vector_YInput, float vector_ZInput) {
-        return new Vector3(vector_XInput, vector_YInput, vector_ZInput); // rbForce is a normalized vector (between -1 and 1) and these vector values are multiplied by move speed to get the velocity of the player
-    }
-
-    public Vector3 calculatePlayerSmoothedVelocity(Vector3 currentVelocity, Vector3 targetVelocity, float intermedVelMod) {
-        return Vector3.MoveTowards(
-            currentVelocity, //current velocity
-            new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z), //target velocity and maintain currentVelocity (playerbody) y value
-            intermedVelMod // value to create intermediate velocity with, (acceleration is dependent on seconds passed) 
-        );
     }
 
     public void setPlayerLinearVelocity(Vector3 smoothedVelocity) {
@@ -233,9 +235,9 @@ public class PlayerScript : MonoBehaviour
 
             float vectorX = this.isSliding ? 0 : (this.rbForce.x * (this.moveSpeed * boostMultiplier));
 
-            Vector3 targetVelocity = calculatePlayerTargetVelocity(vector_XInput: vectorX, vector_YInput: this.playerbody.linearVelocity.y, vector_ZInput: 0);
+            Vector3 targetVelocity = ((Movable)this).calculateTargetVelocity(vector_XInput: vectorX, vector_YInput: this.playerbody.linearVelocity.y, vector_ZInput: 0);
 
-            Vector3 smoothedVelocity = calculatePlayerSmoothedVelocity(this.playerbody.linearVelocity, targetVelocity, intermedVelMod);
+            Vector3 smoothedVelocity = ((Movable)this).calculateSmoothedVelocity(this.playerbody.linearVelocity, targetVelocity, intermedVelMod);
 
             Debug.Log($"Player target lin vel: {smoothedVelocity}");
 
