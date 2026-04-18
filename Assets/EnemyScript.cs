@@ -1,39 +1,80 @@
+using System.Threading;
 using UnityEngine;
 
 public class EnemyScript : MonoBehaviour, Movable
 {
     public bool isPacing;
-    public bool canMove;
+    public bool cannotMove;
+
     public Vector3 minVec;
     public Vector3 maxVec;
-    public float moveSpeed;
+    public float moveSpeed = 7.5f;
+    private string enemyType;
+    private int xDirection;
+    private float lastBound;
+    public float acceleration = 10f;
+
     public Rigidbody enemyBody;
     public BoxCollider enemyFrictBox;
     public BoxCollider enemyHurtBox;
     public BoxCollider enemyHitBox;
-    private string enemyType;
-    private int xDirection;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start(){
         this.enemyType = this.gameObject.tag;
+        if (this.enemyBody.rotation.y == -90){
+            this.xDirection = -1;
+        }
+        else {
+            this.xDirection = 1;
+        }
     }
 
     // Update is called once per frame
     void Update(){
-        if((enemyFrictBox.bounds.min.x <= this.minVec.x) || (enemyFrictBox.bounds.max.x >= this.maxVec.x)) { //flip direction of enemy upon reaching of bounds
-            this.xDirection = xDirection * -1;
+        Debug.Log($"EnUp: frictbox x min bounds: {this.enemyFrictBox.bounds.min.x}");
+        Debug.Log($"EnUp: frictbox x max bounds: {this.enemyFrictBox.bounds.max.x}");
+        Debug.Log($"EnUp: minVec x: {this.minVec.x}");
+        Debug.Log($"EnUp: maxVec x: {this.maxVec.x}");
+        Debug.Log($"EnUp: this.lastBound: {this.lastBound}");
+        Debug.Log($"EnUp: this.xDirection: {this.xDirection}");
+        if (this.isPacing){ //if pacing...
+            float? curBound = null;
+            if (this.enemyFrictBox.bounds.min.x <= (this.minVec.x + .3f)) {
+                curBound = this.minVec.x;
+            }
+            else if (this.enemyFrictBox.bounds.max.x >= (this.maxVec.x - .2f)) {
+                curBound = this.maxVec.x;
+            }
+
+            if (curBound.HasValue) {
+                if(this.lastBound != curBound) {
+                    this.lastBound = (float)curBound;
+                    this.xDirection = this.xDirection * -1;
+                    this.enemyBody.rotation = Quaternion.Euler(0, this.xDirection * 90, 0);
+                }
+            }
+            //if at the left, make local string left, if at right, make local string right, and if lastBound is 
+                /*if(this.enemyFrictBox.bounds.min.x <= (this.minVec.x + 1f)) || (this.enemyFrictBox.bounds.max.x >= (this.maxVec.x - 1f)))) { 
+
+                }*/
+
         }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        
+        if (this.isPacing) {
+            this.setPaceFields(collision);
+            this.enemyBody.rotation = Quaternion.Euler(0, this.xDirection * 90, 0);
+        }
     }
 
     public void setPaceFields(Collision collision){
         if (collision.gameObject.tag == "Platform") {
             this.minVec = collision.collider.bounds.min;
+            //this.minVec.x += .1f;
             this.maxVec = collision.collider.bounds.max;
+            //this.maxVec.x -= .1f;
         }
     }
 
@@ -47,7 +88,22 @@ public class EnemyScript : MonoBehaviour, Movable
 
     void FixedUpdate() //used for physics changes
     {
-         
+        if (!this.cannotMove) {
+            this.enemyBody.AddForce(new Vector3(this.xDirection, 0, 0));
+
+            float forwardVel = this.isPacing ? this.pace() : this.moveSpeed;
+
+            Vector3 targetVelocity = ((Movable)this).calculateTargetVelocity(vector_XInput: forwardVel * this.xDirection, vector_YInput: this.enemyBody.linearVelocity.y, vector_ZInput:0);
+
+            Vector3 smoothedVelocity = ((Movable)this).calculateSmoothedVelocity(this.enemyBody.linearVelocity, targetVelocity, this.acceleration * Time.deltaTime);
+            
+            Debug.Log($"Player target lin vel: {smoothedVelocity}");
+
+            this.setEnemyLinearVelocity(smoothedVelocity);
+        }
     }
 
+    public void setEnemyLinearVelocity(Vector3 linearVelocity) {
+        this.enemyBody.linearVelocity = linearVelocity;
+    }
 }

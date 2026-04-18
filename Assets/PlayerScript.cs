@@ -184,7 +184,7 @@ public class PlayerScript : MonoBehaviour, Movable
     void OnMove2(InputValue value) {
         this.rbForce = value.Get<Vector2>();
         if(this.rbForce.x != 0) {
-            this.playerbody.rotation = Quaternion.Euler(0, (this.rbForce.x > 0 ? 0 : 180), 0);
+            this.playerbody.rotation = Quaternion.Euler(0, (this.rbForce.x > 0 ? 0 : 180), 0); //turn player around in direction of movement
         }
         this.rbForce.y = 0; //IMPORTANT: used to remove any influence pressing up on control stick has on player while jumping, may need to remove in order to do a move in the future
 
