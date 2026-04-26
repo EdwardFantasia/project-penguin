@@ -20,6 +20,7 @@ public class JumpBox : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         print("footbox name: " + this.name);
+        print("other name: " + other.name);
         playerScript.processTrigger(this.name, other);
 
     }

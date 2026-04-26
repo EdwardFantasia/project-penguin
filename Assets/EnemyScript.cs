@@ -1,7 +1,7 @@
 using System.Threading;
 using UnityEngine;
 
-public class EnemyScript : MonoBehaviour, Movable
+public class EnemyScript : MonoBehaviour, Movable, DestroyableParent
 {
     public bool isPacing;
     public bool cannotMove;
@@ -31,12 +31,6 @@ public class EnemyScript : MonoBehaviour, Movable
 
     // Update is called once per frame
     void Update(){
-        Debug.Log($"EnUp: frictbox x min bounds: {this.enemyFrictBox.bounds.min.x}");
-        Debug.Log($"EnUp: frictbox x max bounds: {this.enemyFrictBox.bounds.max.x}");
-        Debug.Log($"EnUp: minVec x: {this.minVec.x}");
-        Debug.Log($"EnUp: maxVec x: {this.maxVec.x}");
-        Debug.Log($"EnUp: this.lastBound: {this.lastBound}");
-        Debug.Log($"EnUp: this.xDirection: {this.xDirection}");
         if (this.isPacing){ //if pacing...
             float? curBound = null;
             if (this.enemyFrictBox.bounds.min.x <= (this.minVec.x + .3f)) {
@@ -53,11 +47,6 @@ public class EnemyScript : MonoBehaviour, Movable
                     this.enemyBody.rotation = Quaternion.Euler(0, this.xDirection * 90, 0);
                 }
             }
-            //if at the left, make local string left, if at right, make local string right, and if lastBound is 
-                /*if(this.enemyFrictBox.bounds.min.x <= (this.minVec.x + 1f)) || (this.enemyFrictBox.bounds.max.x >= (this.maxVec.x - 1f)))) { 
-
-                }*/
-
         }
     }
 

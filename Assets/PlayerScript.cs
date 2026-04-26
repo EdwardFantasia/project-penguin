@@ -19,7 +19,8 @@ using static UnityEngine.Rendering.DebugUI;
 
 //TODO: implement camera toggle between perspective and orthographic (strictly 2D) camera
 //TODO: implement camera movement when character is no longer within frame
-public class PlayerScript : MonoBehaviour, Movable
+
+public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
 {
     public Rigidbody playerbody;
     private PlayerInputActions playerInputActions;
@@ -165,8 +166,9 @@ public class PlayerScript : MonoBehaviour, Movable
     }
 
     public void processTrigger(string triggerName, Collider otherCollisionData) {
+        //TODO: replace comparisons with enum and switch statements
         if(triggerName == "Footbox") {
-            if (otherCollisionData.name.Contains("Ground")) {
+            if (otherCollisionData.name.Contains("Ground")) { //footbox lands on ground/platform
                 this.coyoteFrames = 6;
                 bool wasStomping = this.isStomping;
                 this.isStomping = false;
@@ -178,13 +180,20 @@ public class PlayerScript : MonoBehaviour, Movable
                     /*TODO: X-axis movement is impacted too negatively upon landing after not stomping, decrease how much player "stops" on landing, include setting of playerVel here*/
                 }
             }
+            else if (otherCollisionData.attachedRigidbody.tag.Contains("Enemy") && otherCollisionData.name.Contains("Hurtbox")){ //footbox lands on enemy head
+                //TODO: may need to make this into an intersection function
+                EnemyScript es = otherCollisionData.attachedRigidbody.gameObject.GetComponent<EnemyScript>();
+                ((DestroyableParent)es).DestroyParentObject(otherCollisionData.attachedRigidbody);
+                this.isMidair = true;
+                //destroy enemy and bounce up
+            }
         }
     }
 
     void OnMove2(InputValue value) {
         this.rbForce = value.Get<Vector2>();
         if(this.rbForce.x != 0) {
-            this.playerbody.rotation = Quaternion.Euler(0, (this.rbForce.x > 0 ? 0 : 180), 0); //turn player around in direction of movement
+            this.playerbody.rotation = Quaternion.Euler(0, (this.rbForce.x > 0 ? 0 : 180), 0); //turn player around in direction of movement, quaternion 
         }
         this.rbForce.y = 0; //IMPORTANT: used to remove any influence pressing up on control stick has on player while jumping, may need to remove in order to do a move in the future
 
