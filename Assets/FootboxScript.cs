@@ -24,4 +24,9 @@ public class JumpBox : MonoBehaviour
         playerScript.processTrigger(this.name, other);
 
     }
+
+    /*private void OnTriggerStay(Collider other)
+    {
+        playerScript.processTrigger(this.name, other);
+    }*/
 }

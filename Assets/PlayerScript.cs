@@ -28,7 +28,8 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
     public BoxCollider frictBox;
     public BoxCollider hurtBox;
     public BoxCollider footBox;
-    private RaycastHit objectHit;
+    private RaycastHit vertObjectHit;
+    private RaycastHit horObjectHit;
     public float raycastDist = 8.5f;
 
     private bool canJump;
@@ -36,7 +37,8 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
     private bool isStomping;
     private bool isSliding;
     private bool isBoosting;
-    private bool passthrough = false;
+    private bool vertPassthrough = false;
+    private bool horPassthrough = false;
 
     private Vector2 rbForce;
 
@@ -138,17 +140,32 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
             this.setPlayerLinearVelocity(new Vector3(0, this.playerbody.linearVelocity.y, 0));
         }
 
-        if (this.passthrough) { //if passing through bottom of platform...
+        this.footboxMinY = this.footBox.bounds.min.y;
+
+        if (this.vertPassthrough) { //if passing through bottom of platform...
             Physics.SyncTransforms(); //sync physics transforms
-            this.footboxMinY = this.footBox.bounds.min.y;
-            this.objectHitMaxY = this.objectHit.collider.bounds.max.y;
-            if((footboxMinY - objectHitMaxY) >= 0){ //if footboxMinY is greater than platform's collider's max y, reenable the physics collision between platform and player
-                this.enablePlayerPhysicsColliders(this.objectHit.collider);
+            //this.footboxMinY = this.footBox.bounds.min.y;
+            this.objectHitMaxY = this.vertObjectHit.collider.bounds.max.y;
+            if(footboxMinY >= objectHitMaxY){ //if footboxMinY is greater than platform's collider's max y, reenable the physics collision between platform and player
+                this.enablePlayerPhysicsColliders(this.vertObjectHit.collider);
             }
             Debug.DrawLine(new Vector3(-5, this.footboxMinY, 0), new Vector3(5, this.footboxMinY, 0), Color.green);
             Debug.DrawLine(new Vector3(-5, this.objectHitMaxY, 0), new Vector3(5, this.objectHitMaxY, 0), Color.red);
             Debug.Log($"Plat test - footboxMinY: ${footboxMinY}");
             Debug.Log($"Plat test - objectHitMaxY: ${this.objectHitMaxY}");
+        }
+
+        if (this.horObjectHit.collider) { //if MOVING IN THE AIR and if there is a HOROBJ COLLIDER...
+            Debug.Log($"horObj collider: {this.horObjectHit.collider}");
+            Physics.SyncTransforms();
+            this.footboxMinY = this.footBox.bounds.min.y;
+            this.objectHitMaxY = this.horObjectHit.collider.bounds.max.y;
+            Debug.Log($"horObjHit.footboxMinY: {this.footboxMinY}");
+            Debug.Log($"horObjHit.objectHitMaxY: {this.objectHitMaxY}");
+            if (this.footboxMinY >= this.objectHitMaxY){ //if footboxMinY is greater than platform's collider's max y, reenable the physics collision between platform and player
+                this.enablePlayerPhysicsColliders(this.horObjectHit.collider);
+                this.horObjectHit = new RaycastHit();
+            }
         }
     }
 
@@ -201,9 +218,9 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
 
     void OnJump() {
         if (canJump && !isMidair && (this.coyoteFrames > 0)) {
-            this.passthrough = Physics.BoxCast(center: new Vector3(transform.position.x - .05f, (transform.position.y + this.frictBox.size.y) - .5f, transform.position.z), halfExtents: new Vector3(.5f, .5f, 0), direction: transform.up, out this.objectHit, orientation: transform.rotation, maxDistance: this.raycastDist, layerMask: 1 << 6);
-            if (this.passthrough) {
-                this.disablePlayerPhysicsColliders(this.objectHit.collider);
+            this.vertPassthrough = Physics.BoxCast(center: new Vector3(transform.position.x - .05f, (transform.position.y + this.frictBox.size.y) - .5f, transform.position.z), halfExtents: new Vector3(.5f, .5f, 0), direction: transform.up, out this.vertObjectHit, orientation: transform.rotation, maxDistance: this.raycastDist, layerMask: 1 << 6);
+            if (this.vertPassthrough) {
+                this.disablePlayerPhysicsColliders(this.vertObjectHit.collider);
             }
             this.playerbody.AddForce(Vector2.up * jumpForce, ForceMode.Impulse);
             this.isMidair = true;
@@ -251,16 +268,52 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
             Debug.Log($"Player target lin vel: {smoothedVelocity}");
 
             this.setPlayerLinearVelocity(smoothedVelocity);
+
+            if (this.isMidair && this.playerbody.linearVelocity.x != 0)
+            {
+                Debug.Log("shooting ray");
+                Vector3 localCenter = new Vector3(-0.05f, 1.4f, 0);
+                Vector3 worldCenter = transform.TransformPoint(localCenter);
+
+                RaycastHit tmpHit;
+
+                this.horPassthrough = Physics.BoxCast(
+                    center: new Vector3(transform.position.x - .05f, (transform.position.y + 1.4f), transform.position.z),
+                    halfExtents: new Vector3(.5f, 1.15f, 0.01f),
+                    direction: (this.rbForce.x > 0 ? transform.right : -transform.right),
+                    out tmpHit,
+                    orientation: transform.rotation,
+                    maxDistance: 8.5f,
+                    layerMask: 1 << 6
+                );
+
+                if (this.horPassthrough) { 
+                    this.horObjectHit = tmpHit;
+                    this.disablePlayerPhysicsColliders(this.horObjectHit.collider);
+                    Debug.Log($"horObjHit: ${this.horObjectHit}");
+                }
+
+                Debug.DrawRay(new Vector3(transform.position.x - .05f, (transform.position.y + 1.4f), transform.position.z), (this.rbForce.x > 0 ? transform.right : -transform.right) * 8.5f, Color.red);
+                Debug.Log($"horPassthrough: ${this.horPassthrough}");
+            }
         }
     }
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = this.passthrough ? Color.green : Color.red;
+        Gizmos.color = this.vertPassthrough ? Color.green : Color.red;
         // Set matrix to match the object's rotation and position
         Gizmos.matrix = transform.localToWorldMatrix;
 
         Debug.DrawLine(new Vector3(-5, this.footboxMinY, 0), new Vector3(5, this.footboxMinY, 0), Color.green);
         Debug.DrawLine(new Vector3(-5, this.objectHitMaxY, 0), new Vector3(5, this.objectHitMaxY, 0), Color.red);
+
+        Vector3 center = new Vector3(transform.position.x - .05f, (transform.position.y + 1.4f), transform.position.z);
+        Vector3 halfExtents = new Vector3(.5f, 1.15f, 0.01f); // Added slight thickness
+        Quaternion orientation = transform.rotation;
+
+        Gizmos.color = Color.red;
+        Gizmos.matrix = Matrix4x4.TRS(center, orientation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, halfExtents * 2);
     }
 }
