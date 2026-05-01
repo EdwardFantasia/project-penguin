@@ -130,9 +130,27 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
     // Update is called once per framedd
     void Update()
     {
-        if(this.coyoteFrames < 6) { //if player is falling from ground, have 5 coyote frames to jump and each frame decrease by 1
+        if (this.coyoteFrames < 6 && this.coyoteFrames > 0)
+        {
             Debug.Log($"coyoteFrames: {this.coyoteFrames}");
-            this.coyoteFrames -= 1; //decrease cur coyoteFrames by 1
+            this.coyoteFrames -= 1;
+        }
+
+        if (this.playerbody){
+            if (Mathf.Abs(this.playerbody.linearVelocity.y) > 0.05f) //if moving vertically in any direction
+            {
+                this.isMidair = true;
+                if (this.coyoteFrames <= 0)
+                {
+                    this.canJump = false; //canJump remains true during coyote frames
+                }
+            }
+            else
+            {
+                this.coyoteFrames = 6;
+                this.canJump = true;
+                this.isMidair = false;
+            }
         }
 
         if (this.isStomping) { //placing this here fixed the bug where player model would clip into floor when stomping
@@ -186,23 +204,31 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
         //TODO: replace comparisons with enum and switch statements
         if(triggerName == "Footbox") {
             if (otherCollisionData.name.Contains("Ground")) { //footbox lands on ground/platform
-                this.coyoteFrames = 6;
-                bool wasStomping = this.isStomping;
-                this.isStomping = false;
-                print("footbox touched ground");
-                this.canJump = true;
-                this.isMidair = false;
-                if (!wasStomping && this.rbForce.x != 0) {
-                    Debug.Log("landed after not stomping and moving along X still");
-                    /*TODO: X-axis movement is impacted too negatively upon landing after not stomping, decrease how much player "stops" on landing, include setting of playerVel here*/
+                if (this.playerbody.linearVelocity.y <= 0.0) {
+                    this.playerbody.linearVelocity = new Vector3(this.playerbody.linearVelocity.x, 0, this.playerbody.linearVelocity.z);
+                    this.coyoteFrames = 6;
+                    bool wasStomping = this.isStomping;
+                    this.isStomping = false;
+                    this.canJump = true;
+                    this.isMidair = false;
+                    print("footbox touched ground");
+                    if (!wasStomping && this.rbForce.x != 0)
+                    {
+                        Debug.Log("landed after not stomping and moving along X still");
+                        /*TODO: X-axis movement is impacted too negatively upon landing after not stomping, decrease how much player "stops" on landing, include setting of playerVel here*/
+                    }
                 }
             }
             else if (otherCollisionData.attachedRigidbody.tag.Contains("Enemy") && otherCollisionData.name.Contains("Hurtbox")){ //footbox lands on enemy head
                 //TODO: may need to make this into an intersection function
-                EnemyScript es = otherCollisionData.attachedRigidbody.gameObject.GetComponent<EnemyScript>();
-                ((DestroyableParent)es).DestroyParentObject(otherCollisionData.attachedRigidbody);
-                this.isMidair = true;
-                //destroy enemy and bounce up
+                this.footboxMinY = this.footBox.bounds.min.y;
+                this.objectHitMaxY = this.horObjectHit.collider.bounds.max.y;
+                if (this.footboxMinY >= this.objectHitMaxY) { 
+                    EnemyScript es = otherCollisionData.attachedRigidbody.gameObject.GetComponent<EnemyScript>();
+                    ((DestroyableParent)es).DestroyParentObject(otherCollisionData.attachedRigidbody);
+                    this.isMidair = true;
+                    //destroy enemy and bounce up
+                }
             }
         }
     }
