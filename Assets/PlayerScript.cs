@@ -202,9 +202,12 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
 
     public void processTrigger(string triggerName, Collider otherCollisionData) {
         //TODO: replace comparisons with enum and switch statements
-        if(triggerName == "Footbox") {
-            if (otherCollisionData.name.Contains("Ground")) { //footbox lands on ground/platform
-                if (this.playerbody.linearVelocity.y <= 0.0) {
+        if (triggerName == "Footbox")
+        {
+            if (otherCollisionData.name.Contains("Ground"))
+            { //footbox lands on ground/platform
+                if (this.playerbody.linearVelocity.y <= 0.0)
+                {
                     this.playerbody.linearVelocity = new Vector3(this.playerbody.linearVelocity.x, 0, this.playerbody.linearVelocity.z);
                     this.coyoteFrames = 6;
                     bool wasStomping = this.isStomping;
@@ -219,16 +222,27 @@ public class PlayerScript : MonoBehaviour, Movable, DestroyableParent
                     }
                 }
             }
-            else if (otherCollisionData.attachedRigidbody.tag.Contains("Enemy") && otherCollisionData.name.Contains("Hurtbox")){ //footbox lands on enemy head
+            else if (otherCollisionData.attachedRigidbody.tag.Contains("Enemy") && otherCollisionData.name.Contains("Hurtbox"))
+            { //footbox lands on enemy head
                 //TODO: may need to make this into an intersection function
                 this.footboxMinY = this.footBox.bounds.min.y;
-                this.objectHitMaxY = this.horObjectHit.collider.bounds.max.y;
-                if (this.footboxMinY >= this.objectHitMaxY) { 
+                this.objectHitMaxY = otherCollisionData.bounds.max.y;
+                Debug.Log($"Destroy enemy: footbox min y: {this.footboxMinY}");
+                Debug.Log($"Destroy enemy: object hit max y: {this.objectHitMaxY}");
+                if (this.footboxMinY >= this.objectHitMaxY - .2f)
+                {
+                    Debug.Log("enemy hit");
                     EnemyScript es = otherCollisionData.attachedRigidbody.gameObject.GetComponent<EnemyScript>();
                     ((DestroyableParent)es).DestroyParentObject(otherCollisionData.attachedRigidbody);
                     this.isMidair = true;
                     //destroy enemy and bounce up
                 }
+            }
+        }
+        else if (triggerName == "Boost") {
+            if(otherCollisionData.attachedRigidbody.tag.Contains("Enemy") && otherCollisionData.name.Contains("Hurtbox")){
+                EnemyScript es = otherCollisionData.attachedRigidbody.gameObject.GetComponent<EnemyScript>();
+                ((DestroyableParent)es).DestroyParentObject(otherCollisionData.attachedRigidbody);
             }
         }
     }
